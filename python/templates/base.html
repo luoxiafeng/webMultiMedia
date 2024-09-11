@@ -15,17 +15,23 @@
             width: 250px;
             background-color: #f8f9fa;
             border-right: 1px solid #ddd;
-            position: fixed; /* 固定在左侧 */
-            height: 100vh;   /* 高度占满全屏 */
+            position: fixed;
+            height: 100vh;
             padding-top: 20px;
+        }
+        #sidebar-wrapper .list-group-item {
+            transition: background-color 0.3s;
+        }
+        #sidebar-wrapper .list-group-item:hover {
+            background-color: #e9ecef; /* 鼠标悬停时变色 */
         }
         #page-content-wrapper {
             flex: 1;
-            margin-left: 250px; /* 确保主内容在侧边栏右侧 */
+            margin-left: 250px;
             padding: 20px;
         }
-        .list-group-item {
-            cursor: pointer;
+        .video-stream {
+            margin-bottom: 20px; /* 视频流和其他内容之间的间距 */
         }
     </style>
 </head>
@@ -34,18 +40,38 @@
     <div id="sidebar-wrapper">
         <div class="sidebar-heading">摄像头管理</div>
         <div class="list-group list-group-flush">
-            <a href="{{ url_for('camera_list') }}" class="list-group-item list-group-item-action bg-light">获取摄像头列表</a>
-            <a href="{{ url_for('camera_details') }}" class="list-group-item list-group-item-action bg-light">显示摄像头参数</a>
+            <a href="{{ url_for('index') }}" class="list-group-item list-group-item-action bg-light">视频流</a>
+            <a href="{{ url_for('camera_list') }}" class="list-group-item list-group-item-action bg-light">摄像头列表</a>
         </div>
     </div>
 
     <!-- 主内容 -->
     <div id="page-content-wrapper">
+        <!-- 视频流嵌入到所有页面 -->
+        <div class="video-stream">
+            <h1>实时摄像头视频流</h1>
+            <img id="videoStream" src="{{ url_for('video_feed') }}" width="640" height="480">
+        </div>
+
         {% block content %}
         {% endblock %}
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2/dist/umd/popper.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // 重新加载视频流以解决视频流不显示的问题
+        document.getElementById('videoStream').addEventListener('error', function() {
+            this.src = '';
+            setTimeout(() => {
+                this.src = '{{ url_for("video_feed") }}?t=' + new Date().getTime(); // 通过加时间戳避免缓存
+            }, 1000);
+        });
+
+        // 切换页面时重新加载视频流
+        window.addEventListener('pageshow', function() {
+            document.getElementById('videoStream').src = '{{ url_for("video_feed") }}?t=' + new Date().getTime();
+        });
+    </script>
 </body>
 </html>

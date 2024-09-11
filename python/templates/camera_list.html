@@ -4,11 +4,54 @@
 
 {% block content %}
 <h2>系统中的摄像头列表</h2>
-<ul class="list-group">
-    {% for camera in cameras %}
-    <li class="list-group-item">
-        <a href="{{ url_for('camera_details', camera_id=loop.index0) }}">{{ camera }}</a>
-    </li>
-    {% endfor %}
+<ul class="list-group" id="camera-list">
+    <!-- 摄像头列表通过 JavaScript 动态加载 -->
 </ul>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // 获取摄像头列表
+    fetch('{{ url_for("get_camera_list") }}')
+        .then(response => response.json())
+        .then(data => {
+            const cameraList = document.getElementById('camera-list');
+            data.cameras.forEach((camera, index) => {
+                const listItem = document.createElement('li');
+                listItem.className = 'list-group-item';
+                listItem.textContent = camera.name;
+                listItem.dataset.index = index;
+                listItem.addEventListener('click', function() {
+                    // 切换显示/隐藏摄像头参数
+                    const paramDiv = this.querySelector('.camera-params');
+                    if (paramDiv) {
+                        paramDiv.classList.toggle('d-none');
+                    } else {
+                        // 获取摄像头参数
+                        fetch(`{{ url_for("get_camera_properties") }}?camera_id=${index}`)
+                            .then(response => response.json())
+                            .then(properties => {
+                                const paramDiv = document.createElement('div');
+                                paramDiv.className = 'camera-params mt-2';
+                                const table = document.createElement('table');
+                                table.className = 'table table-bordered';
+
+                                // 添加参数行
+                                for (const [key, value] of Object.entries(properties)) {
+                                    const row = table.insertRow();
+                                    const cell1 = row.insertCell(0);
+                                    const cell2 = row.insertCell(1);
+                                    cell1.textContent = key;
+                                    cell2.textContent = value;
+                                }
+
+                                paramDiv.appendChild(table);
+                                listItem.appendChild(paramDiv);
+                            });
+                    }
+                });
+                cameraList.appendChild(listItem);
+            });
+        });
+});
+</script>
 {% endblock %}

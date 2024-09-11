@@ -1,0 +1,8 @@
+{% extends 'base.html' %}
+
+{% block title %}USB Camera Stream{% endblock %}
+
+{% block content %}
+    <h1>实时摄像头视频流</h1>
+    <img src="{{ url_for('video_feed') }}" width="640" height="480">
+{% endblock %}

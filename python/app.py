@@ -1,5 +1,6 @@
 from flask import Flask, render_template, Response, jsonify, request
 from icg_camera import IcgCamera
+import uuid  # 确保导入 uuid 模块
 
 app = Flask(__name__)
 
@@ -30,8 +31,10 @@ def get_camera_properties():
 
 @app.route('/video_feed')
 def video_feed():
-    # 使用 IcgCamera 的 generate_video_stream 方法生成视频流
-    response = Response(icg_camera.generate_video_stream(), mimetype='multipart/x-mixed-replace; boundary=frame')
+    # 为每个请求生成一个唯一的 client_id
+    client_id = str(uuid.uuid4())  # 使用 UUID 生成唯一的 client_id
+    # 调用 generate_video_stream 并传递 client_id
+    response = Response(icg_camera.generate_video_stream(client_id), mimetype='multipart/x-mixed-replace; boundary=frame')
     response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"  # 避免缓存
     response.headers["Pragma"] = "no-cache"
     response.headers["Expires"] = "0"

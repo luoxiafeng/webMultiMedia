@@ -56,6 +56,21 @@ def video_feed():
     response.headers["Expires"] = "0"
     return response
 
+@app.route('/get_cache_status')
+def get_cache_status():
+    client_id = request.args.get('client_id')
+    if not client_id or client_id not in icg_camera.client_states:
+        return jsonify({"error": "Client ID not recognized"}), 400
+    return jsonify(icg_camera.get_cache_status(client_id))
+
+@app.route('/get_frame_rate')
+def get_frame_rate():
+    client_id = request.args.get('client_id')
+    if not client_id or client_id not in icg_camera.client_states:
+        return jsonify({"error": "Client ID not recognized"}), 400
+    return jsonify(icg_camera.get_frame_rate(client_id))
+
+
 if __name__ == '__main__':
     try:
         app.run(host='0.0.0.0', port=5000, debug=True)

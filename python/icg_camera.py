@@ -200,3 +200,30 @@ class IcgCamera:
             # 生成视频流
             yield (b'--frame\r\n'
                    b'Content-Type: image/jpeg\r\n\r\n'+ frame.buffer + b'\r\n')
+            
+    
+    # 在 IcgCamera 类中修改方法
+    def get_cache_status(self, client_id):
+        """根据 client_id 获取链表中帧的ID和时间戳"""
+        # 获取指定客户端的状态
+        client_state = self.client_states.get(client_id, None)
+        if not client_state:
+            return []
+        frame_pos = client_state['frame_pos']
+        cache_status = [{"id": frame.id, "timestamp": frame.timestamp} 
+                        for frame in self.frame_list if frame is not None]
+        return cache_status
+
+    def get_frame_rate(self, client_id):
+        """根据 client_id 获取帧率数据"""
+        client_state = self.client_states.get(client_id, None)
+        if not client_state:
+            return []
+        # 假设帧率是通过时间戳差异计算得到的
+        timestamps = [frame.timestamp for frame in self.frame_list if frame is not None]
+        if len(timestamps) < 2:
+            return []
+        intervals = [t2 - t1 for t1, t2 in zip(timestamps[:-1], timestamps[1:])]
+        frame_rates = [1000 / interval for interval in intervals]  # 将时间间隔转换为帧率（帧/秒）
+        return frame_rates[-15:]  # 只返回最近的15个数据点
+

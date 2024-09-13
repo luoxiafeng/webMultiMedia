@@ -41,26 +41,30 @@
             align-items: flex-start;
         }
 
-        .video-stream,
-        .status-panel,
-        .charts-container {
+        .video-stream {
             flex: 1;
             display: flex;
             flex-direction: column;
             max-height: 100%;
-            overflow: hidden; /* 避免内容超出 */
+            overflow: hidden;
         }
 
         .video-stream img {
-            width: 100%;
-            height: auto;
-            max-height: 100vh; /* 限制视频流的最大高度 */
+            width: 640px; /* 恢复视频流的宽度 */
+            height: 480px; /* 恢复视频流的高度 */
+            max-width: 100%; /* 确保宽度不会超出容器 */
         }
 
-        .status-panel,
+        .status-panel {
+            flex: 0.4; /* 调整状态面板的宽度 */
+            max-height: 480px; /* 保证状态面板高度不超过视频流 */
+            overflow-y: auto;
+        }
+
         .charts-container {
-            max-height: calc(100vh - 60px); /* 约束内容最大高度，使其不超过视频流 */
-            overflow-y: auto; /* 当内容过多时显示滚动条 */
+            flex: 0.6; /* 调整图表容器的宽度 */
+            max-height: 480px; /* 保证图表容器高度不超过视频流 */
+            overflow: hidden;
         }
 
         .chart-wrapper {
@@ -68,10 +72,11 @@
             flex-direction: column;
             gap: 10px;
             height: 100%;
+            justify-content: space-between; /* 使图表等间距分布 */
         }
 
         .chart {
-            flex: 1; /* 使得帧率和数据流量图表等高 */
+            height: calc(240px - 10px); /* 保证图表在红线之内，两个图表总高度不超过480px */
         }
 
         @media (max-width: 768px) {

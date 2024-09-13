@@ -14,7 +14,6 @@
             padding: 20px;
             box-sizing: border-box;
         }
-
         #sidebar-wrapper {
             width: 10%;
             background-color: #f8f9fa;
@@ -23,24 +22,21 @@
             height: 100vh;
             padding-top: 20px;
         }
-
         #sidebar-wrapper .list-group-item {
             transition: background-color 0.3s;
         }
-
         #sidebar-wrapper .list-group-item:hover {
             background-color: #e9ecef;
         }
-
         #page-content-wrapper {
             flex: 1;
-            margin-left: 20%;
+            margin-left: 10%;
             padding: 20px;
-            display: flex;
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr; /* 默认三列 */
             gap: 20px;
             align-items: flex-start;
         }
-
         .video-stream {
             flex: 1;
             display: flex;
@@ -48,55 +44,32 @@
             max-height: 100%;
             overflow: hidden;
         }
-
         .video-stream img {
-            width: 640px; /* 恢复视频流的宽度 */
-            height: 480px; /* 恢复视频流的高度 */
-            max-width: 100%; /* 确保宽度不会超出容器 */
+            width: 640px;
+            height: 480px;
+            max-width: 100%;
         }
-
         .status-panel {
-            flex: 0.4; /* 调整状态面板的宽度 */
-            max-height: 480px; /* 保证状态面板高度不超过视频流 */
+            max-height: 480px;
             overflow-y: auto;
         }
-
         .charts-container {
-            flex: 0.6; /* 调整图表容器的宽度 */
-            max-height: 480px; /* 保证图表容器高度不超过视频流 */
+            max-height: 480px;
             overflow: hidden;
         }
-
         .chart-wrapper {
             display: flex;
             flex-direction: column;
             gap: 10px;
             height: 100%;
-            justify-content: space-between; /* 使图表等间距分布 */
+            justify-content: space-between;
         }
-
         .chart {
-            height: calc(240px - 10px); /* 保证图表在红线之内，两个图表总高度不超过480px */
+            height: calc(240px - 10px);
         }
-
-        @media (max-width: 768px) {
-            #sidebar-wrapper {
-                width: 40%;
-                position: relative;
-                height: auto;
-            }
-
-            #page-content-wrapper {
-                margin-left: 0;
-                flex-direction: column;
-            }
-
-            .video-stream,
-            .status-panel,
-            .charts-container {
-                flex: 1 1 100%;
-                margin-bottom: 10px;
-            }
+        #camera-info-panel {
+            display: none; /* 初始隐藏 */
+            grid-column: span 1; /* 占据一列 */
         }
     </style>
 </head>
@@ -136,6 +109,12 @@
                     <canvas id="dataUsageChart"></canvas>
                 </div>
             </div>
+        </div>
+
+        <!-- 新增的摄像头信息面板 -->
+        <div id="camera-info-panel" class="status-panel">
+            <h5>系统中的摄像头列表</h5>
+            <ul class="list-group" id="camera-list"></ul>
         </div>
 
         {% block content %}
@@ -248,35 +227,67 @@
                     y: {
                         title: { display: true, text: '流量 (KB/s)' },
                         min: 0,
-                        max: 1000 // 根据实际情况调整
+                        max: 1000
                     }
                 }
             }
         });
 
-        setInterval(() => {
-            fetch('/get_frame_rate?client_id=' + clientId)
-                .then(response => response.json())
-                .then(data => {
-                    if (frameRateChart.data.datasets[0].data.length >= 100) {
-                        frameRateChart.data.datasets[0].data.shift();
-                    }
-                    frameRateChart.data.datasets[0].data.push(data[data.length - 1] || 0);
-                    frameRateChart.update();
-                });
-        }, 1000);
+        // 摄像头列表显示/隐藏逻辑
+        let cameraPanelVisible = false;
+        document.getElementById('camera-list-link').addEventListener('click', function(event) {
+            event.preventDefault(); // 防止默认的跳转行为
+            const cameraPanel = document.getElementById('camera-info-panel');
+            cameraPanelVisible = !cameraPanelVisible;
+            cameraPanel.style.display = cameraPanelVisible ? 'block' : 'none';
+            document.getElementById('page-content-wrapper').style.gridTemplateColumns = cameraPanelVisible ? '1fr 1fr 1fr 1fr' : '1fr 1fr 1fr';
 
-        setInterval(() => {
-            fetch('/get_data_usage?client_id=' + clientId)
+            // 仅当摄像头面板显示时加载摄像头列表
+            if (cameraPanelVisible) {
+                loadCameraList();
+            }
+        });
+
+        // 摄像头列表加载逻辑
+        function loadCameraList() {
+            fetch('{{ url_for("get_camera_list") }}')
                 .then(response => response.json())
                 .then(data => {
-                    if (dataUsageChart.data.datasets[0].data.length >= 100) {
-                        dataUsageChart.data.datasets[0].data.shift();
-                    }
-                    dataUsageChart.data.datasets[0].data.push(data[data.length - 1] || 0);
-                    dataUsageChart.update();
+                    const cameraList = document.getElementById('camera-list');
+                    cameraList.innerHTML = '';
+                    data.cameras.forEach((camera, index) => {
+                        const listItem = document.createElement('li');
+                        listItem.className = 'list-group-item';
+                        listItem.textContent = camera.name;
+                        listItem.dataset.index = index;
+                        listItem.addEventListener('click', function() {
+                            const paramDiv = this.querySelector('.camera-params');
+                            if (paramDiv) {
+                                paramDiv.classList.toggle('d-none');
+                            } else {
+                                fetch(`{{ url_for("get_camera_properties") }}?camera_id=${index}`)
+                                    .then(response => response.json())
+                                    .then(properties => {
+                                        const paramDiv = document.createElement('div');
+                                        paramDiv.className = 'camera-params mt-2';
+                                        const table = document.createElement('table');
+                                        table.className = 'table table-bordered';
+                                        for (const [key, value] of Object.entries(properties)) {
+                                            const row = table.insertRow();
+                                            const cell1 = row.insertCell(0);
+                                            const cell2 = row.insertCell(1);
+                                            cell1.textContent = key;
+                                            cell2.textContent = value;
+                                        }
+                                        paramDiv.appendChild(table);
+                                        listItem.appendChild(paramDiv);
+                                    });
+                            }
+                        });
+                        cameraList.appendChild(listItem);
+                    });
                 });
-        }, 1000);
+        }
     </script>
 </body>
 </html>

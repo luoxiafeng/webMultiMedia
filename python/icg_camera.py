@@ -2,6 +2,8 @@ import cv2
 import os
 import time
 import threading
+import platform
+import subprocess
 from collections import deque
 from dataclasses import dataclass, field
 from threading import Lock
@@ -144,24 +146,37 @@ class IcgCamera:
         return properties
     
     @staticmethod
-    def detect_camdev(self):
-        # 使用 OpenCV 查找所有系统中的摄像头
+    def detect_camdev():
+        # 获取当前操作系统
+        system = platform.system().lower()
         camera_indices = []
 
-        # 检查常见摄像头设备
-        for i in range(10):
-            cap = cv2.VideoCapture(i)
-            if cap.read()[0]:
-                camera_indices.append({"name": f"Camera {i} - /dev/video{i}", "index": i})
-                cap.release()
+        if system == 'linux':
+            # Linux 系统：通过检查 /dev 目录下的 video 设备
+            video_devices = [f for f in os.listdir('/dev') if f.startswith('video')]
+            for index, device in enumerate(video_devices):
+                camera_indices.append({"name": f"Camera {index} - /dev/{device}", "index": index})
 
-        # Windows 下通过 dshow 接口查找摄像头
-        if os.name == 'nt':  # Windows
-            for i in range(10):
-                cap = cv2.VideoCapture(i, cv2.CAP_DSHOW)
-                if cap.read()[0]:
-                    camera_indices.append({"name": f"Camera {i}", "index": i})
-                    cap.release()
+        elif system == 'windows':
+            # Windows 系统：通过 DirectShow 枚举摄像头设备
+            try:
+                # 使用 PowerShell 调用 DirectShow 接口获取设备列表
+                result = subprocess.run(
+                    ["powershell.exe", 
+                     "-Command", 
+                     "Get-WmiObject Win32_PnPEntity | Where-Object { $_.Name -match 'Camera|Imaging' } | Select-Object Name"],
+                    capture_output=True, text=True, check=True)
+                
+                devices = result.stdout.splitlines()
+                for i, device in enumerate(devices):
+                    device_name = device.strip()
+                    if device_name:
+                        camera_indices.append({"name": f"Camera {i} - {device_name}", "index": i})
+            except subprocess.CalledProcessError as e:
+                print(f"Error detecting cameras on Windows: {e}")
+
+        else:
+            print(f"Unsupported system: {system}")
 
         return camera_indices
 

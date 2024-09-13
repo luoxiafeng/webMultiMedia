@@ -1,6 +1,7 @@
 # app.py
 from flask import Flask, render_template, Response, jsonify, request
 from app_mgr import AppManager
+from icg_camera import IcgCamera
 import uuid
 
 app = Flask(__name__)
@@ -28,16 +29,16 @@ def camera_list():
 
 @app.route('/get_camera_list')
 def get_camera_list():
-    cameras = app_mgr.get_camera().detect_camdev()
+    cameras = IcgCamera.detect_camdev()
     return jsonify({"cameras": cameras})
 
 @app.route('/get_camera_properties')
 def get_camera_properties():
-    camera_id = request.args.get('camera_id', 0, type=int)
+    ''' camera_id = request.args.get('camera_id', 0, type=int)
     camera_obj = IcgCamera(camera_index=camera_id)
     properties = camera_obj.get_all_properties()
     camera_obj.release()
-    return jsonify(properties)
+    return jsonify(properties) '''
 
 @app.route('/video_feed')
 def video_feed():

@@ -9,9 +9,10 @@
     <style>
         body {
             display: flex;
-            flex-direction: row;
             min-height: 100vh;
             margin: 0;
+            padding: 20px;
+            box-sizing: border-box;
         }
 
         #sidebar-wrapper {
@@ -36,55 +37,60 @@
             margin-left: 20%;
             padding: 20px;
             display: flex;
-            flex-wrap: wrap;
-            gap: 20px;  /* 使用gap来控制间距 */
-            justify-content: flex-start;
+            gap: 20px;
+            align-items: flex-start;
         }
 
         .video-stream,
         .status-panel,
-        .frame-rate {
-            flex: 1 1 calc(33% - 20px); /* 自适应布局，每行最多3个 */
-            min-width: 280px; /* 设置最小宽度，保证在小屏幕下仍能显示完整 */
-            max-width: 100%;
-        }
-
-        .client-info {
-            margin-bottom: 10px;
-            font-size: 14px;
-            color: #555;
+        .charts-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            max-height: 100%;
+            overflow: hidden; /* 避免内容超出 */
         }
 
         .video-stream img {
-            width: 100%; /* 自适应宽度 */
-            height: auto; /* 保持比例 */
+            width: 100%;
+            height: auto;
+            max-height: 100vh; /* 限制视频流的最大高度 */
+        }
+
+        .status-panel,
+        .charts-container {
+            max-height: calc(100vh - 60px); /* 约束内容最大高度，使其不超过视频流 */
+            overflow-y: auto; /* 当内容过多时显示滚动条 */
+        }
+
+        .chart-wrapper {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            height: 100%;
+        }
+
+        .chart {
+            flex: 1; /* 使得帧率和数据流量图表等高 */
         }
 
         @media (max-width: 768px) {
             #sidebar-wrapper {
-                width: 40%; /* 在较小屏幕上调整侧边栏宽度 */
+                width: 40%;
                 position: relative;
                 height: auto;
             }
 
             #page-content-wrapper {
                 margin-left: 0;
-                flex-direction: column; /* 在小屏幕上将布局调整为垂直 */
+                flex-direction: column;
             }
 
             .video-stream,
             .status-panel,
-            .frame-rate {
-                flex: 1 1 100%; /* 垂直布局时每个元素占满宽度 */
-            }
-        }
-
-        @media (max-width: 480px) {
-            .video-stream,
-            .status-panel,
-            .frame-rate {
+            .charts-container {
                 flex: 1 1 100%;
-                margin-bottom: 10px; /* 在最小屏幕下增加额外的间距 */
+                margin-bottom: 10px;
             }
         }
     </style>
@@ -102,23 +108,29 @@
     <!-- 主内容 -->
     <div id="page-content-wrapper">
         <div class="video-stream">
-            <!-- 显示客户端信息 -->
             <div class="client-info">
                 <strong>Client:</strong> {{ client_id }}
             </div>
             <img id="videoStream">
         </div>
 
-        <!-- 缓存状态显示面板 -->
         <div class="status-panel">
             <h5>缓存状态</h5>
             <ul id="cacheList" class="list-group"></ul>
         </div>
 
-        <!-- 帧率图表 -->
-        <div class="frame-rate">
-            <h5>帧率</h5>
-            <canvas id="frameRateChart"></canvas>
+        <!-- 图表容器：帧率和数据流量在同一列 -->
+        <div class="charts-container">
+            <div class="chart-wrapper">
+                <div class="chart chart-container">
+                    <h5>帧率</h5>
+                    <canvas id="frameRateChart"></canvas>
+                </div>
+                <div class="chart chart-container">
+                    <h5>数据流量统计</h5>
+                    <canvas id="dataUsageChart"></canvas>
+                </div>
+            </div>
         </div>
 
         {% block content %}
@@ -128,26 +140,21 @@
     <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2/dist/umd/popper.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-        // 清除 sessionStorage 中的 client_id，当页面刷新时
         window.addEventListener('beforeunload', function () {
             sessionStorage.removeItem('client_id');
         });
 
-        // 获取或存储 client_id 到 sessionStorage
         let clientId = sessionStorage.getItem('client_id');
         if (!clientId) {
             clientId = "{{ client_id }}";
             sessionStorage.setItem('client_id', clientId);
         }
 
-        // 更新侧边栏链接，添加 client_id
         document.getElementById('video-stream-link').href = '/?client_id=' + clientId;
         document.getElementById('camera-list-link').href = '/camera_list?client_id=' + clientId;
 
-        // 设置视频流的 src 并添加 client_id 作为查询参数
         document.getElementById('videoStream').src = '{{ url_for("video_feed") }}?client_id=' + clientId;
 
-        // 重新加载视频流以解决视频流不显示的问题
         document.getElementById('videoStream').addEventListener('error', function() {
             this.src = '';
             setTimeout(() => {
@@ -155,14 +162,12 @@
             }, 1000);
         });
 
-        // 切换页面时重新加载视频流
         window.addEventListener('pageshow', function() {
             document.getElementById('videoStream').src = '{{ url_for("video_feed") }}?client_id=' + clientId + '&t=' + new Date().getTime();
         });
 
-        // 定期更新缓存状态
         setInterval(() => {
-            fetch('/get_cache_status?client_id=' + clientId)  // 添加 client_id 查询参数
+            fetch('/get_cache_status?client_id=' + clientId)
                 .then(response => response.json())
                 .then(data => {
                     const cacheList = document.getElementById('cacheList');
@@ -176,15 +181,14 @@
                 });
         }, 1000);
 
-        // 初始化帧率图表
         const frameRateCtx = document.getElementById('frameRateChart').getContext('2d');
         const frameRateChart = new Chart(frameRateCtx, {
             type: 'line',
             data: {
-                labels: Array.from({ length: 100 }, (_, i) => i + 1), // 固定的 1 到 100
+                labels: Array.from({ length: 100 }, (_, i) => i + 1),
                 datasets: [{
                     label: '帧率 (帧/秒)',
-                    data: Array(100).fill(null),  // 初始化为 null 或 0
+                    data: Array(100).fill(null),
                     borderColor: 'rgba(75, 192, 192, 1)',
                     borderWidth: 2,
                     fill: false,
@@ -196,32 +200,78 @@
                     x: {
                         title: { display: true, text: '时间 (秒)' },
                         ticks: {
-                            stepSize: 1, // 每 1 秒一个标记
+                            stepSize: 1,
                             callback: function(value, index) {
-                                return index + 1; // 显示 1 到 100 的刻度
+                                return index + 1;
                             },
                             maxTicksLimit: 100
                         }
                     },
                     y: {
                         title: { display: true, text: '帧数' },
-                        min: 0,  // 设置纵坐标最小值为 0
-                        max: 40  // 设置纵坐标最大值为 40
+                        min: 0,
+                        max: 40
                     }
                 }
             }
         });
 
-        // 定期更新帧率，每秒刷新一次
+        const dataUsageCtx = document.getElementById('dataUsageChart').getContext('2d');
+        const dataUsageChart = new Chart(dataUsageCtx, {
+            type: 'line',
+            data: {
+                labels: Array.from({ length: 100 }, (_, i) => i + 1),
+                datasets: [{
+                    label: '数据流量 (KB/s)',
+                    data: Array(100).fill(null),
+                    borderColor: 'rgba(255, 99, 132, 1)',
+                    borderWidth: 2,
+                    fill: false,
+                    tension: 0.1
+                }]
+            },
+            options: {
+                scales: {
+                    x: {
+                        title: { display: true, text: '时间 (秒)' },
+                        ticks: {
+                            stepSize: 1,
+                            callback: function(value, index) {
+                                return index + 1;
+                            },
+                            maxTicksLimit: 100
+                        }
+                    },
+                    y: {
+                        title: { display: true, text: '流量 (KB/s)' },
+                        min: 0,
+                        max: 1000 // 根据实际情况调整
+                    }
+                }
+            }
+        });
+
         setInterval(() => {
-            fetch('/get_frame_rate?client_id=' + clientId)  // 添加 client_id 查询参数
+            fetch('/get_frame_rate?client_id=' + clientId)
                 .then(response => response.json())
                 .then(data => {
                     if (frameRateChart.data.datasets[0].data.length >= 100) {
-                        frameRateChart.data.datasets[0].data.shift(); // 超过100秒，移除最早的数据点
+                        frameRateChart.data.datasets[0].data.shift();
                     }
-                    frameRateChart.data.datasets[0].data.push(data[data.length - 1] || 0); // 添加最新的帧率
+                    frameRateChart.data.datasets[0].data.push(data[data.length - 1] || 0);
                     frameRateChart.update();
+                });
+        }, 1000);
+
+        setInterval(() => {
+            fetch('/get_data_usage?client_id=' + clientId)
+                .then(response => response.json())
+                .then(data => {
+                    if (dataUsageChart.data.datasets[0].data.length >= 100) {
+                        dataUsageChart.data.datasets[0].data.shift();
+                    }
+                    dataUsageChart.data.datasets[0].data.push(data[data.length - 1] || 0);
+                    dataUsageChart.update();
                 });
         }, 1000);
     </script>

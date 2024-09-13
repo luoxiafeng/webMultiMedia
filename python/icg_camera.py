@@ -142,7 +142,8 @@ class IcgCamera:
             'CAP_PROP_EXPOSURE': self.camera.get(cv2.CAP_PROP_EXPOSURE),
         }
         return properties
-
+    
+    @staticmethod
     def detect_camdev(self):
         # 使用 OpenCV 查找所有系统中的摄像头
         camera_indices = []

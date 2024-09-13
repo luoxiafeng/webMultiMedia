@@ -114,9 +114,9 @@
     <div id="page-content-wrapper">
         <div class="video-stream">
             <div class="client-info">
-                <strong>Client:</strong> {{ client_id }}
+                <strong>Client:</strong> {{ client_id }} <strong>IP:</strong> {{ client_ip }}
             </div>
-            <img id="videoStream">
+            <img id="videoStream" src="{{ url_for('video_feed') }}?client_id={{ client_id }}" width="640" height="480">
         </div>
 
         <div class="status-panel">
@@ -157,8 +157,6 @@
 
         document.getElementById('video-stream-link').href = '/?client_id=' + clientId;
         document.getElementById('camera-list-link').href = '/camera_list?client_id=' + clientId;
-
-        document.getElementById('videoStream').src = '{{ url_for("video_feed") }}?client_id=' + clientId;
 
         document.getElementById('videoStream').addEventListener('error', function() {
             this.src = '';
